@@ -1,4 +1,7 @@
 /*
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ *
  * Copyright (C) 2010 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1490,6 +1493,13 @@ public class NfcService implements DeviceHostListener, ForegroundUtils.Callback 
     }
 
     final class NfcAdapterService extends INfcAdapter.Stub {
+        /**
+         * An interface for vendor specific extensions
+         */
+        public IBinder getNfcAdapterVendorInterface(String vendor) {
+            return null;
+        }
+
         private boolean isPrivileged(int callingUid) {
             // Check for root uid to help invoking privileged APIs from rooted shell only.
             return callingUid == Process.SYSTEM_UID || callingUid == Process.ROOT_UID;
