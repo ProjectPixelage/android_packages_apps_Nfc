@@ -29,6 +29,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -62,7 +64,7 @@ public class AidRoutingManager {
     final byte[] mOffHostRouteEse;
     // Used for backward compatibility in case application doesn't specify the
     // SE
-    final int mDefaultOffHostRoute;
+    int mDefaultOffHostRoute;
 
     // How the NFC controller can match AIDs in the routing table;
     // see AID_MATCHING constants
@@ -88,6 +90,7 @@ public class AidRoutingManager {
         int route;
         int aidInfo;
         int power;
+        List<String> unCheckedOffHostSE = new ArrayList<>();
     }
 
     public AidRoutingManager() {
@@ -246,15 +249,46 @@ public class AidRoutingManager {
         return false;
     }
 
+    private void checkOffHostRouteToHost(HashMap<String, AidEntry> routeCache) {
+        Iterator<Map.Entry<String, AidEntry> > it = routeCache.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, AidEntry> entry = it.next();
+            String aid = entry.getKey();
+            AidEntry aidEntry = entry.getValue();
+
+            if (!aidEntry.isOnHost || aidEntry.unCheckedOffHostSE.size() == 0) {
+                continue;
+            }
+            boolean mustHostRoute = aidEntry.unCheckedOffHostSE.stream()
+                    .anyMatch(offHost -> getRouteForSecureElement(offHost) == mDefaultRoute);
+            if (mustHostRoute) {
+                if (DBG) Log.d(TAG, aid + " is route to host due to unchecked off host and " +
+                        "default route(0x" + Integer.toHexString(mDefaultRoute) + ") is same");
+            }
+            else {
+                if (DBG) Log.d(TAG, aid + " remove in host route list");
+                it.remove();
+            }
+        }
+    }
+
     public boolean configureRouting(HashMap<String, AidEntry> aidMap, boolean force) {
         boolean aidRouteResolved = false;
         HashMap<String, AidEntry> aidRoutingTableCache = new HashMap<String, AidEntry>(aidMap.size());
         ArrayList<Integer> seList = new ArrayList<Integer>();
+
+        int prevDefaultRoute = mDefaultRoute;
+
         if (mRoutingOptionManager.isRoutingTableOverrided()) {
             mDefaultRoute = mRoutingOptionManager.getOverrideDefaultRoute();
+            mDefaultIsoDepRoute = mRoutingOptionManager.getOverrideDefaultIsoDepRoute();
+            mDefaultOffHostRoute = mRoutingOptionManager.getOverrideDefaultOffHostRoute();
         } else {
             mDefaultRoute = mRoutingOptionManager.getDefaultRoute();
+            mDefaultIsoDepRoute = mRoutingOptionManager.getDefaultIsoDepRoute();
+            mDefaultOffHostRoute = mRoutingOptionManager.getDefaultOffHostRoute();
         }
+
         boolean isPowerStateUpdated = false;
         seList.add(mDefaultRoute);
         if (mDefaultRoute != ROUTE_HOST) {
@@ -295,6 +329,13 @@ public class AidRoutingManager {
             routeForAid.put(aid, route);
             powerForAid.put(aid, power);
             infoForAid.put(aid, aidType);
+        }
+
+        if (!mRoutingOptionManager.isAutoChangeEnabled() && seList.size() >= 2) {
+            Log.d(TAG, "AutoRouting is not enabled, make only one item in list");
+            int firstRoute = seList.get(0);
+            seList.clear();
+            seList.add(firstRoute);
         }
 
         synchronized (mLock) {
@@ -458,6 +499,12 @@ public class AidRoutingManager {
                     }
                 }
 
+                // Unchecked Offhosts rout to host
+                if (mDefaultRoute != ROUTE_HOST) {
+                    Log.d(TAG, "check offHost route to host");
+                    checkOffHostRouteToHost(aidRoutingTableCache);
+                }
+
               if (calculateAidRouteSize(aidRoutingTableCache) <= mMaxAidRoutingTableSize ||
                     mRoutingOptionManager.isRoutingTableOverrided()) {
                   aidRouteResolved = true;
@@ -467,9 +514,12 @@ public class AidRoutingManager {
 
             boolean mIsUnrouteRequired = checkUnrouteAid(prevRouteForAid, prevPowerForAid);
             boolean isRouteTableUpdated = checkRouteAid(prevRouteForAid, prevPowerForAid);
+            boolean isRoutingOptionUpdated = (prevDefaultRoute != mDefaultRoute);
 
-            if (isPowerStateUpdated || isRouteTableUpdated || mIsUnrouteRequired || force) {
-                if (aidRouteResolved == true) {
+            if (isPowerStateUpdated || isRouteTableUpdated || mIsUnrouteRequired
+                    || isRoutingOptionUpdated || force) {
+                if (aidRouteResolved) {
+                    sendRoutingTable(isRoutingOptionUpdated, force);
                     commit(aidRoutingTableCache);
                 } else {
                     NfcStatsLog.write(NfcStatsLog.NFC_ERROR_OCCURRED,
@@ -505,6 +555,30 @@ public class AidRoutingManager {
         // And finally commit the routing
         NfcService.getInstance().commitRouting();
     }
+
+    private void sendRoutingTable(boolean optionChanged, boolean force) {
+        Log.d(TAG, "sendRoutingTable");
+        if (!mRoutingOptionManager.isRoutingTableOverrided()) {
+            if (mDefaultRoute != ROUTE_HOST) {
+                Log.d(TAG, "Protocol and Technology entries need to sync with"
+                    + " mDefaultRoute: " + mDefaultRoute);
+                mDefaultIsoDepRoute = mDefaultRoute;
+                mDefaultOffHostRoute = mDefaultRoute;
+            }
+            else {
+                Log.d(TAG, "Default route is DeviceHost, use previous protocol, technology");
+            }
+
+            if (force || optionChanged) {
+                NfcService.getInstance().setIsoDepProtocolRoute(mDefaultIsoDepRoute);
+                NfcService.getInstance().setTechnologyABFRoute(mDefaultOffHostRoute);
+            }
+        }
+        else {
+            Log.d(TAG, "Routing table is override, Do not send the protocol, tech");
+        }
+    }
+
 
     /**
      * This notifies that the AID routing table in the controller

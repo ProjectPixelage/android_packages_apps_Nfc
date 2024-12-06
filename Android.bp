@@ -42,6 +42,9 @@ java_defaults {
         "nfc-event-log-proto",
         "nfc_flags_lib",
     ],
+    flags_packages: [
+        "nfc_aconfig_flags",
+    ],
     privileged: true,
     optimize: {
         proguard_flags_files: ["proguard.flags"],
@@ -76,6 +79,12 @@ android_app {
         // does not ship one in /product
         "libnfc-nci.conf-default",
     ],
+    lint: {
+        baseline_filename: "lint-baseline-nfcnci.xml",
+        warning_checks: [
+            "FlaggedApi",
+        ],
+    },
 }
 
 // NCI Configuration embedded in NFC apex.
@@ -92,15 +101,15 @@ android_app {
     ],
     libs: [
         "framework-annotations-lib",
-        "framework-bluetooth",
-        "framework-configinfrastructure",
+        "framework-bluetooth.stubs.module_lib",
+        "framework-configinfrastructure.stubs.module_lib",
         "framework-nfc.impl",
-        "framework-permission-s",
-        "framework-permission",
+        "framework-permission-s.stubs.module_lib",
+        "framework-permission.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
-        "framework-wifi",
+        "framework-wifi.stubs.module_lib",
         "android.nfc.flags-aconfig-java",
-        "android.permission.flags-aconfig-java-export",
+        "android.permission.flags-aconfig-java",
         "android.service.chooser.flags-aconfig-java",
         "unsupportedappusage",
     ],

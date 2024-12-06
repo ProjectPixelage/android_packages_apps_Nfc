@@ -57,6 +57,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
@@ -65,8 +66,7 @@ import org.mockito.quality.Strictness;
 public final class NfcReaderConflictOccurredTest {
 
     private static final String TAG = NfcReaderConflictOccurredTest.class.getSimpleName();
-    private boolean mNfcSupported;
-
+    @Mock private NfcInjector mNfcInjector;
     private MockitoSession mStaticMockSession;
     private NfcDispatcher mNfcDispatcher;
 
@@ -76,15 +76,7 @@ public final class NfcReaderConflictOccurredTest {
                 .mockStatic(NfcStatsLog.class)
                 .strictness(Strictness.LENIENT)
                 .startMocking();
-
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        PackageManager mPackageManager = context.getPackageManager();
-        if (!mPackageManager.hasSystemFeature(PackageManager.FEATURE_NFC_ANY)) {
-            mNfcSupported = false;
-            return;
-        }
-        mNfcSupported = true;
-
+	Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         PackageManager mockPackageManager = Mockito.mock(PackageManager.class);
         // multiple resolveInfos for Tag
         when(mockPackageManager.queryIntentActivitiesAsUser(
@@ -129,7 +121,7 @@ public final class NfcReaderConflictOccurredTest {
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync(
               () -> mNfcDispatcher = new NfcDispatcher(
-                      mockContext, new HandoverDataParser(), false));
+                      mockContext, new HandoverDataParser(), mNfcInjector, false));
         Assert.assertNotNull(mNfcDispatcher);
     }
 
@@ -140,8 +132,6 @@ public final class NfcReaderConflictOccurredTest {
 
     @Test
     public void testLogReaderConflict() {
-        if (!mNfcSupported) return;
-
         Tag tag = Tag.createMockTag(null, new int[0], new Bundle[0], 0L);
         int result = mNfcDispatcher.dispatchTag(tag);
         ExtendedMockito.verify(() -> NfcStatsLog.write(
@@ -151,8 +141,6 @@ public final class NfcReaderConflictOccurredTest {
 
     @Test
     public void testLogReaderSuccess() {
-        if (!mNfcSupported) return;
-
         Tag tag = Tag.createMockTag(null, new int[0], new Bundle[0], 0L);
         int result = mNfcDispatcher.dispatchTag(tag);
         Assert.assertEquals(result,DISPATCH_SUCCESS);

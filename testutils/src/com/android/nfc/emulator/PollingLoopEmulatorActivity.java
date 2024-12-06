@@ -75,7 +75,7 @@ public class PollingLoopEmulatorActivity extends BaseEmulatorActivity {
 
         mCustomFrame = getIntent().getStringExtra(NFC_CUSTOM_FRAME_KEY);
         boolean isPreferredServiceSet = mCardEmulation.setPreferredService(this, serviceName);
-        waitForService();
+        waitForPreferredService();
         waitForObserveModeEnabled(true);
 
         mNfcACount = 0;
@@ -105,6 +105,13 @@ public class PollingLoopEmulatorActivity extends BaseEmulatorActivity {
         Log.e(TAG, "onPause");
         unregisterReceiver(mFieldStateReceiver);
         mCardEmulation.unsetPreferredService(this);
+    }
+
+    @Override
+    protected void onApduSequenceComplete(ComponentName component, long duration) {
+        if (component.equals(PollingLoopService.COMPONENT)) {
+            setTestPassed();
+        }
     }
 
     @Override

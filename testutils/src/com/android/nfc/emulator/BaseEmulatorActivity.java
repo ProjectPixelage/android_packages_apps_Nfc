@@ -22,8 +22,10 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.content.pm.ServiceInfo;
 import android.content.res.XmlResourceParser;
 import android.nfc.NfcAdapter;
 import android.nfc.cardemulation.CardEmulation;
@@ -34,25 +36,7 @@ import android.util.Log;
 import android.util.Xml;
 
 import com.android.compatibility.common.util.CommonTestUtils;
-import com.android.nfc.service.AccessService;
 import com.android.nfc.service.HceService;
-import com.android.nfc.service.LargeNumAidsService;
-import com.android.nfc.service.OffHostService;
-import com.android.nfc.service.PaymentService1;
-import com.android.nfc.service.PaymentService2;
-import com.android.nfc.service.PaymentServiceDynamicAids;
-import com.android.nfc.service.PollingLoopService;
-import com.android.nfc.service.PollingLoopService2;
-import com.android.nfc.service.PrefixAccessService;
-import com.android.nfc.service.PrefixPaymentService1;
-import com.android.nfc.service.PrefixPaymentService2;
-import com.android.nfc.service.PrefixTransportService1;
-import com.android.nfc.service.PrefixTransportService2;
-import com.android.nfc.service.ScreenOffPaymentService;
-import com.android.nfc.service.ScreenOnOnlyOffHostService;
-import com.android.nfc.service.ThroughputService;
-import com.android.nfc.service.TransportService1;
-import com.android.nfc.service.TransportService2;
 import com.android.nfc.utils.HceUtils;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -69,27 +53,6 @@ public abstract class BaseEmulatorActivity extends Activity {
 
     // Intent action that's sent after the test condition is met.
     protected static final String ACTION_TEST_PASSED = PACKAGE_NAME + ".ACTION_TEST_PASSED";
-    protected static final ArrayList<ComponentName> SERVICES =
-            new ArrayList<>(
-                    List.of(
-                            TransportService1.COMPONENT,
-                            TransportService2.COMPONENT,
-                            AccessService.COMPONENT,
-                            PaymentService1.COMPONENT,
-                            PaymentService2.COMPONENT,
-                            PaymentServiceDynamicAids.COMPONENT,
-                            PrefixPaymentService1.COMPONENT,
-                            PrefixPaymentService2.COMPONENT,
-                            PrefixTransportService1.COMPONENT,
-                            PrefixTransportService2.COMPONENT,
-                            PrefixAccessService.COMPONENT,
-                            ThroughputService.COMPONENT,
-                            LargeNumAidsService.COMPONENT,
-                            ScreenOffPaymentService.COMPONENT,
-                            OffHostService.COMPONENT,
-                            ScreenOnOnlyOffHostService.COMPONENT,
-                            PollingLoopService.COMPONENT,
-                            PollingLoopService2.COMPONENT));
     protected static final String TAG = "BaseEmulatorActivity";
     protected NfcAdapter mAdapter;
     protected CardEmulation mCardEmulation;
@@ -136,19 +99,18 @@ public abstract class BaseEmulatorActivity extends Activity {
     }
 
     public void disableServices() {
-        for (ComponentName component : SERVICES) {
+        for (ComponentName component : getServices()) {
             Log.d(TAG, "Disabling component " + component);
             HceUtils.disableComponent(getPackageManager(), component);
         }
     }
 
     /* Gets preferred service description */
-    public String getPreferredServiceDescription() {
+    public String getServiceDescriptionFromComponent(ComponentName component) {
         try {
             Bundle data =
                     getPackageManager()
-                            .getServiceInfo(
-                                    getPreferredServiceComponent(), PackageManager.GET_META_DATA)
+                            .getServiceInfo(component, PackageManager.GET_META_DATA)
                             .metaData;
             XmlResourceParser xrp =
                     getResources().getXml(data.getInt(HostApduService.SERVICE_META_DATA));
@@ -184,6 +146,8 @@ public abstract class BaseEmulatorActivity extends Activity {
             }
         } catch (NameNotFoundException e) {
             Log.w(TAG, "NameNotFoundException. Test will probably fail.");
+        } catch (Exception e) {
+            Log.w(TAG, "Exception while parsing service description.", e);
         }
         return "";
     }
@@ -191,23 +155,41 @@ public abstract class BaseEmulatorActivity extends Activity {
     void ensurePreferredService(String serviceDesc, Context context, CardEmulation cardEmulation) {
         Log.d(TAG, "ensurePreferredService: " + serviceDesc);
         try {
-            CommonTestUtils.waitUntil("Default service hasn't updated", 6,
-                    () -> serviceDesc.equals(
-                            cardEmulation.getDescriptionForPreferredPaymentService().toString()));
-        } catch (InterruptedException ie) {
-            Log.w(TAG, "Default service not updated. This may cause tests to fail");
+            CommonTestUtils.waitUntil(
+                    "Default service hasn't updated",
+                    6,
+                    () ->
+                            cardEmulation.getDescriptionForPreferredPaymentService() != null
+                                    && serviceDesc.equals(
+                                            cardEmulation
+                                                    .getDescriptionForPreferredPaymentService()
+                                                    .toString()));
+        } catch (Exception e) {
+            Log.e(TAG, "Default service not updated. This may cause tests to fail", e);
         }
     }
 
     /** Sets observe mode. */
     public boolean setObserveModeEnabled(boolean enable) {
-        ensurePreferredService(getPreferredServiceDescription(), this, mCardEmulation);
+        ensurePreferredService(
+                getServiceDescriptionFromComponent(getPreferredServiceComponent()),
+                this,
+                mCardEmulation);
         return mAdapter.setObserveModeEnabled(enable);
     }
 
     /** Waits for preferred service to be set, and sends broadcast afterwards. */
-    public void waitForService() {
-        ensurePreferredService(getPreferredServiceDescription(), this, mCardEmulation);
+    public void waitForPreferredService() {
+        ensurePreferredService(
+                getServiceDescriptionFromComponent(getPreferredServiceComponent()),
+                this,
+                mCardEmulation);
+    }
+
+    /** Waits for given service to be set */
+    public void waitForService(ComponentName componentName) {
+        ensurePreferredService(
+                getServiceDescriptionFromComponent(componentName), this, mCardEmulation);
     }
 
     void waitForObserveModeEnabled(boolean enabled) {
@@ -215,8 +197,8 @@ public abstract class BaseEmulatorActivity extends Activity {
         try {
             CommonTestUtils.waitUntil("Observe mode has not been set", 6,
                     () -> mAdapter.isObserveModeEnabled() == enabled);
-        } catch (InterruptedException ie) {
-            Log.w(TAG, "Observe mode not set to " + enabled + ". This may cause tests to fail");
+        } catch (Exception e) {
+            Log.e(TAG, "Observe mode not set to " + enabled + ". This may cause tests to fail", e);
         }
     }
 
@@ -229,8 +211,7 @@ public abstract class BaseEmulatorActivity extends Activity {
     /** Sets up HCE services for this emulator */
     public void setupServices(ComponentName... componentNames) {
         List<ComponentName> enableComponents = Arrays.asList(componentNames);
-        Log.d(TAG, "setupServices called");
-        for (ComponentName component : SERVICES) {
+        for (ComponentName component : getServices()) {
             if (enableComponents.contains(component)) {
                 Log.d(TAG, "Enabling component " + component);
                 HceUtils.enableComponent(getPackageManager(), component);
@@ -292,5 +273,25 @@ public abstract class BaseEmulatorActivity extends Activity {
     /** Reset Listen tech */
     public void resetListenTech() {
         mAdapter.resetDiscoveryTechnology(this);
+    }
+
+    /* Fetch all services in the package */
+    private List<ComponentName> getServices() {
+        List<ComponentName> services = new ArrayList<>();
+        try {
+            PackageInfo packageInfo = getPackageManager().getPackageInfo(PACKAGE_NAME,
+                    PackageManager.GET_SERVICES
+                            | PackageManager.MATCH_DISABLED_COMPONENTS);
+
+            if (packageInfo.services != null) {
+                for (ServiceInfo info : packageInfo.services) {
+                    services.add(new ComponentName(PACKAGE_NAME, info.name));
+                }
+            }
+
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Package, application or component name cannot be found", e);
+        }
+        return services;
     }
 }

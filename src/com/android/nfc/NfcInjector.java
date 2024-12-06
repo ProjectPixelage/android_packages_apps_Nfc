@@ -27,18 +27,15 @@ import android.nfc.NfcFrameworkInitializer;
 import android.nfc.NfcServiceManager;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.SystemProperties;
-import android.os.UserHandle;
 import android.os.VibrationEffect;
 import android.provider.Settings;
 import android.se.omapi.ISecureElementService;
 import android.se.omapi.SeFrameworkInitializer;
 import android.se.omapi.SeServiceManager;
-import android.text.TextUtils;
 import android.util.AtomicFile;
 import android.util.Log;
 
@@ -46,7 +43,6 @@ import com.android.nfc.cardemulation.util.StatsdUtils;
 import com.android.nfc.dhimpl.NativeNfcManager;
 import com.android.nfc.flags.FeatureFlags;
 import com.android.nfc.handover.HandoverDataParser;
-import com.android.nfc.proto.NfcEventProto;
 
 import java.io.File;
 import java.time.LocalDateTime;
@@ -77,6 +73,7 @@ public class NfcInjector {
     private final ForegroundUtils mForegroundUtils;
     private final NfcDiagnostics mNfcDiagnostics;
     private final NfcServiceManager.ServiceRegisterer mNfcManagerRegisterer;
+    private final NfcWatchdog mNfcWatchdog;
     private static NfcInjector sInstance;
 
     public static NfcInjector getInstance() {
@@ -95,7 +92,8 @@ public class NfcInjector {
         mNfcUnlockManager = NfcUnlockManager.getInstance();
         mHandoverDataParser = new HandoverDataParser();
         mDeviceConfigFacade = new DeviceConfigFacade(mContext, new Handler(mainLooper));
-        mNfcDispatcher = new NfcDispatcher(mContext, mHandoverDataParser, isInProvisionMode());
+        mNfcDispatcher =
+            new NfcDispatcher(mContext, mHandoverDataParser, this, isInProvisionMode());
         mVibrationEffect = VibrationEffect.createOneShot(200, VibrationEffect.DEFAULT_AMPLITUDE);
         mBackupManager = new BackupManager(mContext);
         mFeatureFlags = new com.android.nfc.flags.FeatureFlagsImpl();
@@ -116,6 +114,7 @@ public class NfcInjector {
         eventLogThread.start();
         mNfcEventLog = new NfcEventLog(mContext, this, eventLogThread.getLooper(),
                 new AtomicFile(new File(NFC_DATA_DIR, EVENT_LOG_FILE_NAME)));
+        mNfcWatchdog = new NfcWatchdog(mContext);
         sInstance = this;
     }
 
@@ -183,6 +182,10 @@ public class NfcInjector {
         return mNfcManagerRegisterer;
     }
 
+    public NfcWatchdog getNfcWatchdog() {
+        return mNfcWatchdog;
+    }
+
     public DeviceHost makeDeviceHost(DeviceHost.DeviceHostListener listener) {
         return new NativeNfcManager(mContext, listener);
     }
@@ -213,19 +216,6 @@ public class NfcInjector {
         } else {
             return false;
         }
-    }
-
-    public boolean checkIsSecureNfcCapable() {
-        if (mContext.getResources().getBoolean(R.bool.enable_secure_nfc_support)) {
-            return true;
-        }
-        String[] skuList = mContext.getResources().getStringArray(
-                R.array.config_skuSupportsSecureNfc);
-        String sku = SystemProperties.get("ro.boot.hardware.sku");
-        if (TextUtils.isEmpty(sku) || !Utils.arrayContains(skuList, sku)) {
-            return false;
-        }
-        return true;
     }
 
     public ISecureElementService connectToSeService() throws RemoteException {
@@ -259,6 +249,7 @@ public class NfcInjector {
                 mContext.getContentResolver(), Constants.SETTINGS_SATELLITE_MODE_ENABLED, 0) == 1;
     }
 
+
     /**
      * Get the current time of the clock in milliseconds.
      *
@@ -284,5 +275,18 @@ public class NfcInjector {
      */
     public long getElapsedSinceBootNanos() {
         return SystemClock.elapsedRealtimeNanos();
+    }
+
+    /**
+     * Temporary location to store nfc properties being added in Android 16 for OEM convergence.
+     * Will move all of these together to libsysprop later to avoid multiple rounds of API reviews.
+     */
+    public static final class NfcProperties {
+        private static final String NFC_EUICC_SUPPORTED_PROP_KEY = "ro.nfc.euicc_supported";
+
+        public static boolean isEuiccSupported() {
+            return SystemProperties.getBoolean(NFC_EUICC_SUPPORTED_PROP_KEY, true);
+        }
+
     }
 }

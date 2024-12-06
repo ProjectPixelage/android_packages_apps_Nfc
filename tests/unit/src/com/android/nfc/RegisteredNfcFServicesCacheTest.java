@@ -64,6 +64,7 @@ import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -73,7 +74,6 @@ import java.util.List;
 public class RegisteredNfcFServicesCacheTest {
 
     private static String TAG = RegisteredNfcFServicesCacheTest.class.getSimpleName();
-    private boolean mNfcSupported;
     private MockitoSession mStaticMockSession;
     private RegisteredNfcFServicesCache mNfcFServicesCache;
     private int mUserId = -1;
@@ -81,21 +81,12 @@ public class RegisteredNfcFServicesCacheTest {
 
     @Before
     public void setUp() throws Exception {
-
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mStaticMockSession = ExtendedMockito.mockitoSession()
                 .mockStatic(Xml.class)
                 .mockStatic(NfcStatsLog.class)
                 .strictness(Strictness.LENIENT)
                 .startMocking();
-
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        PackageManager pm = context.getPackageManager();
-        if (!pm.hasSystemFeature(PackageManager.FEATURE_NFC_ANY)) {
-            mNfcSupported = false;
-            return;
-        }
-        mNfcSupported = true;
-
         Context mockContext = new ContextWrapper(context) {
             public Intent registerReceiverForAllUsers(@Nullable BroadcastReceiver receiver,
                     @NonNull IntentFilter filter, @Nullable String broadcastPermission,
@@ -130,18 +121,30 @@ public class RegisteredNfcFServicesCacheTest {
                 }
                 XmlResourceParser parser = mock(XmlResourceParser.class);
                 AttributeSet attributeSet = mock(AttributeSet.class);
-                TypedArray typedArray = mock(TypedArray.class);
-                when(typedArray.getString(
+
+                TypedArray typedArrayHost = mock(TypedArray.class);
+                when(typedArrayHost.getString(
                         com.android.internal.R.styleable.HostNfcFService_description)).thenReturn(
                         "nfc");
-                when(resources.obtainAttributes(attributeSet,
-                        com.android.internal.R.styleable.HostNfcFService)).thenReturn(typedArray);
+                TypedArray typedArrayNfcid2 = mock(TypedArray.class);
+                when(typedArrayNfcid2.getString(
+                        com.android.internal.R.styleable.Nfcid2Filter_name)).thenReturn(
+                        "02FEC1DE32456789");
+                TypedArray typedArraySystem = mock(TypedArray.class);
+                when(typedArraySystem.getString(
+                        com.android.internal.R.styleable.SystemCodeFilter_name)).thenReturn(
+                        "42BC");
+                when(resources.obtainAttributes(any(), any())).thenReturn(typedArrayHost,
+                        typedArraySystem, typedArrayNfcid2);
+
                 when(Xml.asAttributeSet(parser)).thenReturn(attributeSet);
                 try {
                     when(parser.getEventType()).thenReturn(XmlPullParser.START_TAG,
                             XmlPullParser.END_TAG);
-                    when(parser.next()).thenReturn(1, 0);
-                    when(parser.getName()).thenReturn("host-nfcf-service");
+                    when(parser.next()).thenReturn(XmlPullParser.START_TAG, XmlPullParser.START_TAG,
+                            XmlPullParser.END_TAG);
+                    when(parser.getName()).thenReturn("host-nfcf-service",
+                            "system-code-filter", "nfcid2-filter");
                 } catch (XmlPullParserException e) {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -176,8 +179,6 @@ public class RegisteredNfcFServicesCacheTest {
 
     @Test
     public void testOnHostEmulationActivated() {
-        if (!mNfcSupported) return;
-
         boolean isActive = mNfcFServicesCache.isActivated();
         Assert.assertFalse(isActive);
         mNfcFServicesCache.onHostEmulationActivated();
@@ -187,8 +188,6 @@ public class RegisteredNfcFServicesCacheTest {
 
     @Test
     public void testOnHostEmulationDeactivated() {
-        if (!mNfcSupported) return;
-
         mNfcFServicesCache.onHostEmulationActivated();
         boolean isActive = mNfcFServicesCache.isActivated();
         Assert.assertTrue(isActive);
@@ -199,8 +198,6 @@ public class RegisteredNfcFServicesCacheTest {
 
     @Test
     public void testOnNfcDisabled() {
-        if (!mNfcSupported) return;
-
         mNfcFServicesCache.onHostEmulationActivated();
         boolean isActive = mNfcFServicesCache.isActivated();
         Assert.assertTrue(isActive);
@@ -211,8 +208,6 @@ public class RegisteredNfcFServicesCacheTest {
 
     @Test
     public void testInvalidateCache() {
-        if (!mNfcSupported) return;
-
         Assert.assertEquals(-1, mUserId);
         mNfcFServicesCache.invalidateCache(1);
         List<NfcFServiceInfo> services = mNfcFServicesCache.getServices(1);
@@ -225,10 +220,9 @@ public class RegisteredNfcFServicesCacheTest {
         Assert.assertEquals("com.android.nfc", cName.getPackageName());
     }
 
-    @Test
-    public void testGetServices() {
-        if (!mNfcSupported) return;
 
+    @Test
+    public void testGetService() {
         mNfcFServicesCache.invalidateCache(1);
         List<NfcFServiceInfo> services = mNfcFServicesCache.getServices(1);
         Assert.assertNotNull(services);
@@ -236,6 +230,83 @@ public class RegisteredNfcFServicesCacheTest {
         NfcFServiceInfo nfcFServiceInfo = services.get(0);
         ComponentName cName = nfcFServiceInfo.getComponent();
         Assert.assertNotNull(cName);
-        Assert.assertEquals("com.android.nfc", cName.getPackageName());
+
+        NfcFServiceInfo serviceInfo = mNfcFServicesCache.getService(1, cName);
+        Assert.assertNotNull(serviceInfo);
+        Assert.assertEquals(nfcFServiceInfo, serviceInfo);
+    }
+
+    @Test
+    public void testGetNfcid2ForService() {
+        mNfcFServicesCache.invalidateCache(1);
+        List<NfcFServiceInfo> services = mNfcFServicesCache.getServices(1);
+        Assert.assertNotNull(services);
+        Assert.assertTrue(services.size() > 0);
+        NfcFServiceInfo nfcFServiceInfo = services.get(0);
+        ComponentName cName = nfcFServiceInfo.getComponent();
+        Assert.assertNotNull(cName);
+
+        String nfcId2 = mNfcFServicesCache.getNfcid2ForService(1, 0, cName);
+        Assert.assertNotNull(nfcId2);
+        Assert.assertEquals("02FEC1DE32456789", nfcId2);
+    }
+
+    @Test
+    public void testSetNfcid2ForService() {
+        mNfcFServicesCache.invalidateCache(1);
+        List<NfcFServiceInfo> services = mNfcFServicesCache.getServices(1);
+        Assert.assertNotNull(services);
+        Assert.assertTrue(services.size() > 0);
+        NfcFServiceInfo nfcFServiceInfo = services.get(0);
+        ComponentName cName = nfcFServiceInfo.getComponent();
+        Assert.assertNotNull(cName);
+        XmlSerializer xmlSerializer = mock(XmlSerializer.class);
+        when(Xml.newSerializer()).thenReturn(xmlSerializer);
+        String nfcId2 = "02FE9876543210AB";
+        boolean isSet = mNfcFServicesCache.setNfcid2ForService(1, 0, cName, nfcId2);
+        Assert.assertTrue(isSet);
+    }
+
+    @Test
+    public void testRemoveSystemCodeForService() {
+        mNfcFServicesCache.invalidateCache(1);
+        List<NfcFServiceInfo> services = mNfcFServicesCache.getServices(1);
+        Assert.assertNotNull(services);
+        Assert.assertTrue(services.size() > 0);
+        NfcFServiceInfo nfcFServiceInfo = services.get(0);
+        ComponentName cName = nfcFServiceInfo.getComponent();
+        Assert.assertNotNull(cName);
+        XmlSerializer xmlSerializer = mock(XmlSerializer.class);
+        when(Xml.newSerializer()).thenReturn(xmlSerializer);
+        boolean isRemove = mNfcFServicesCache.removeSystemCodeForService(1, 0, cName);
+        Assert.assertTrue(isRemove);
+
+    }
+
+    @Test
+    public void  testHasService() {
+        mNfcFServicesCache.invalidateCache(1);
+        List<NfcFServiceInfo> services = mNfcFServicesCache.getServices(1);
+        Assert.assertNotNull(services);
+        Assert.assertTrue(services.size() > 0);
+        NfcFServiceInfo nfcFServiceInfo = services.get(0);
+        ComponentName cName = nfcFServiceInfo.getComponent();
+        Assert.assertNotNull(cName);
+        boolean hasService = mNfcFServicesCache.hasService(1, cName);
+        Assert.assertTrue(hasService);
+
+    }
+
+    @Test
+    public void testGetSystemCodeForService() {
+        mNfcFServicesCache.invalidateCache(1);
+        List<NfcFServiceInfo> services = mNfcFServicesCache.getServices(1);
+        Assert.assertNotNull(services);
+        Assert.assertFalse(services.isEmpty());
+        NfcFServiceInfo nfcFServiceInfo = services.get(0);
+        ComponentName cName = nfcFServiceInfo.getComponent();
+        String systemCode = mNfcFServicesCache.getSystemCodeForService(1, 0, cName);
+        Assert.assertNotNull(systemCode);
+        Assert.assertEquals("42BC", systemCode);
     }
 }

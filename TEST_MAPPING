@@ -12,11 +12,18 @@
   ],
   "postsubmit": [
     {
+      "name": "NfcTestCases"
+    },
+    {
       "name": "NfcNciInstrumentationTests",
       "keywords": ["primary-device"]
     },
     {
       "name": "NfcNciUnitTests",
+      "keywords": ["primary-device"]
+    },
+    {
+      "name": "nfc.nci.jni.tests",
       "keywords": ["primary-device"]
     }
   ],

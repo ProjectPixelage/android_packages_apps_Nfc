@@ -16,6 +16,11 @@
 
 package com.android.nfc.cardemulation;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -53,7 +58,6 @@ import com.android.nfc.NfcService;
 import com.android.nfc.R;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -152,6 +156,7 @@ public class CardEmulationManagerTest {
                 any(), anyInt())).thenReturn(mContext);
         when(mContext.getResources()).thenReturn(mResources);
         when(mContext.getSystemService(eq(UserManager.class))).thenReturn(mUserManager);
+        when(mResources.getBoolean(R.bool.indicate_user_activity_for_hce)).thenReturn(true);
         mCardEmulationManager = createInstanceWithMockParams();
     }
 
@@ -180,8 +185,8 @@ public class CardEmulationManagerTest {
 
     @Test
     public void testGetters() {
-        Assert.assertNotNull(mCardEmulationManager.getNfcCardEmulationInterface());
-        Assert.assertNotNull(mCardEmulationManager.getNfcFCardEmulationInterface());
+        assertNotNull(mCardEmulationManager.getNfcCardEmulationInterface());
+        assertNotNull(mCardEmulationManager.getNfcFCardEmulationInterface());
     }
 
     @Test
@@ -189,7 +194,7 @@ public class CardEmulationManagerTest {
         mCardEmulationManager.onPollingLoopDetected(POLLING_LOOP_FRAMES);
 
         verify(mHostEmulationManager).onPollingLoopDetected(mPollingLoopFrameCaptor.capture());
-        Assert.assertEquals(mPollingLoopFrameCaptor.getValue(), POLLING_LOOP_FRAMES);
+        assertEquals(POLLING_LOOP_FRAMES, mPollingLoopFrameCaptor.getValue());
     }
 
     @Test
@@ -200,7 +205,7 @@ public class CardEmulationManagerTest {
                 eq(PowerManager.USER_ACTIVITY_FLAG_INDIRECT));
         verify(mHostEmulationManager).onHostEmulationActivated();
         verify(mPreferredServices).onHostEmulationActivated();
-        Assert.assertFalse(mCardEmulationManager.mNotSkipAid);
+        assertFalse(mCardEmulationManager.mNotSkipAid);
         verifyZeroInteractions(mHostNfcFEmulationManager);
         verifyZeroInteractions(mEnabledNfcFServices);
     }
@@ -222,19 +227,19 @@ public class CardEmulationManagerTest {
     @Test
     public void testSkipAid_nullData_isFalse() {
         mCardEmulationManager.mNotSkipAid = false;
-        Assert.assertFalse(mCardEmulationManager.isSkipAid(null));
+        assertFalse(mCardEmulationManager.isSkipAid(null));
     }
 
     @Test
     public void testSkipAid_notSkipTrue_isFalse() {
         mCardEmulationManager.mNotSkipAid = true;
-        Assert.assertFalse(mCardEmulationManager.isSkipAid(TEST_DATA_1));
+        assertFalse(mCardEmulationManager.isSkipAid(TEST_DATA_1));
     }
 
     @Test
     public void testSkipAid_wrongData_isFalse() {
         mCardEmulationManager.mNotSkipAid = false;
-        Assert.assertFalse(mCardEmulationManager.isSkipAid(TEST_DATA_1));
+        assertFalse(mCardEmulationManager.isSkipAid(TEST_DATA_1));
     }
 
     @Test
@@ -255,7 +260,7 @@ public class CardEmulationManagerTest {
                 PROPER_SKIP_DATA_NDF1_HEADER);
 
         verify(mHostEmulationManager).onHostEmulationData(mDataCaptor.capture());
-        Assert.assertEquals(PROPER_SKIP_DATA_NDF1_HEADER, mDataCaptor.getValue());
+        assertEquals(PROPER_SKIP_DATA_NDF1_HEADER, mDataCaptor.getValue());
         verifyZeroInteractions(mHostNfcFEmulationManager);
         verifyZeroInteractions(mPowerManager);
     }
@@ -266,7 +271,7 @@ public class CardEmulationManagerTest {
                 PROPER_SKIP_DATA_NDF1_HEADER);
 
         verify(mHostNfcFEmulationManager).onHostEmulationData(mDataCaptor.capture());
-        Assert.assertEquals(PROPER_SKIP_DATA_NDF1_HEADER, mDataCaptor.getValue());
+        assertEquals(PROPER_SKIP_DATA_NDF1_HEADER, mDataCaptor.getValue());
         verifyZeroInteractions(mHostEmulationManager);
         verify(mPowerManager).userActivity(anyLong(), eq(PowerManager.USER_ACTIVITY_EVENT_TOUCH),
                 eq(0));
@@ -366,7 +371,7 @@ public class CardEmulationManagerTest {
         verify(mWalletRoleObserver, times(2)).isWalletRoleFeatureEnabled();
         verify(mRegisteredAidCache).onServicesUpdated(eq(USER_ID), mServiceListCaptor.capture());
         verify(mPreferredServices).onServicesUpdated();
-        Assert.assertEquals(UPDATED_SERVICES, mServiceListCaptor.getValue());
+        assertEquals(UPDATED_SERVICES, mServiceListCaptor.getValue());
         verifyZeroInteractions(mHostEmulationManager);
         verify(mNfcService).onPreferredPaymentChanged(eq(NfcAdapter.PREFERRED_PAYMENT_UPDATED));
     }
@@ -384,8 +389,8 @@ public class CardEmulationManagerTest {
         verify(mHostEmulationManager).updatePollingLoopFilters(eq(USER_ID),
                 mServiceListCaptor.capture());
         verify(mNfcService).onPreferredPaymentChanged(eq(NfcAdapter.PREFERRED_PAYMENT_UPDATED));
-        Assert.assertEquals(UPDATED_SERVICES, mServiceListCaptor.getAllValues().getFirst());
-        Assert.assertEquals(UPDATED_SERVICES, mServiceListCaptor.getAllValues().getLast());
+        assertEquals(UPDATED_SERVICES, mServiceListCaptor.getAllValues().getFirst());
+        assertEquals(UPDATED_SERVICES, mServiceListCaptor.getAllValues().getLast());
     }
 
     @Test
@@ -394,7 +399,7 @@ public class CardEmulationManagerTest {
 
         verify(mRegisteredT3tIdentifiersCache).onServicesUpdated(eq(USER_ID),
                 mNfcServiceListCaptor.capture());
-        Assert.assertEquals(UPDATED_NFC_SERVICES, mNfcServiceListCaptor.getValue());
+        assertEquals(UPDATED_NFC_SERVICES, mNfcServiceListCaptor.getValue());
     }
 
     @Test
@@ -412,7 +417,7 @@ public class CardEmulationManagerTest {
     public void testIsServiceRegistered_serviceDoesNotExists() {
         when(mRegisteredServicesCache.hasService(eq(USER_ID), any())).thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager
+        assertFalse(mCardEmulationManager
                 .isServiceRegistered(USER_ID, WALLET_PAYMENT_SERVICE));
 
         verify(mRegisteredServicesCache).invalidateCache(eq(USER_ID), eq(true));
@@ -435,7 +440,7 @@ public class CardEmulationManagerTest {
     public void testIsNfcServiceInstalled_serviceDoesNotExists() {
         when(mRegisteredNfcFServicesCache.hasService(eq(USER_ID), any())).thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager
+        assertFalse(mCardEmulationManager
                 .isNfcFServiceInstalled(USER_ID, WALLET_PAYMENT_SERVICE));
 
         verify(mRegisteredNfcFServicesCache).invalidateCache(eq(USER_ID));
@@ -482,7 +487,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredServicesCache.hasService(eq(USER_ID), any())).thenReturn(false);
 
         assertConstructorMethodCalls();
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .isDefaultServiceForCategory(USER_ID, WALLET_PAYMENT_SERVICE,
                         CardEmulation.CATEGORY_PAYMENT));
 
@@ -526,7 +531,7 @@ public class CardEmulationManagerTest {
             throws RemoteException {
         when(mRegisteredServicesCache.hasService(eq(USER_ID), any())).thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .isDefaultServiceForAid(USER_ID, WALLET_PAYMENT_SERVICE,
                         PAYMENT_AID_1));
 
@@ -569,7 +574,7 @@ public class CardEmulationManagerTest {
             throws RemoteException {
         when(mRegisteredServicesCache.hasService(eq(USER_ID), any())).thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .setDefaultForNextTap(USER_ID, WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
@@ -656,7 +661,7 @@ public class CardEmulationManagerTest {
             throws RemoteException {
         when(mRegisteredServicesCache.hasService(eq(USER_ID), any())).thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .setShouldDefaultToObserveModeForService(USER_ID, WALLET_PAYMENT_SERVICE,
                         false));
 
@@ -706,7 +711,7 @@ public class CardEmulationManagerTest {
                 any())).thenReturn(true);
         AidGroup aidGroup = Mockito.mock(AidGroup.class);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .registerAidGroupForService(USER_ID, WALLET_PAYMENT_SERVICE, aidGroup));
 
         ExtendedMockito.verify(() -> {
@@ -757,7 +762,7 @@ public class CardEmulationManagerTest {
                 any(), any(),anyBoolean())).thenReturn(true);
         String pollingLoopFilter = "filter";
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .registerPollingLoopFilterForService(USER_ID, WALLET_PAYMENT_SERVICE,
                         pollingLoopFilter, true));
 
@@ -808,7 +813,7 @@ public class CardEmulationManagerTest {
                 any(), any())).thenReturn(true);
         String pollingLoopFilter = "filter";
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .removePollingLoopFilterForService(USER_ID, WALLET_PAYMENT_SERVICE,
                         pollingLoopFilter));
 
@@ -859,7 +864,7 @@ public class CardEmulationManagerTest {
                 anyInt(), any(), any(), anyBoolean())).thenReturn(true);
         String pollingLoopFilter = "filter";
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .registerPollingLoopPatternFilterForService(USER_ID, WALLET_PAYMENT_SERVICE,
                         pollingLoopFilter, true));
 
@@ -910,7 +915,7 @@ public class CardEmulationManagerTest {
                 anyInt(), any(), any())).thenReturn(true);
         String pollingLoopFilter = "filter";
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .removePollingLoopPatternFilterForService(USER_ID, WALLET_PAYMENT_SERVICE,
                         pollingLoopFilter));
 
@@ -960,7 +965,7 @@ public class CardEmulationManagerTest {
                 anyInt(), any(), any())).thenReturn(true);
         String offhostse = "offhostse";
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .setOffHostForService(USER_ID, WALLET_PAYMENT_SERVICE, offhostse));
 
         ExtendedMockito.verify(() -> {
@@ -1008,7 +1013,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredServicesCache.resetOffHostSecureElement(eq(USER_ID),
                 anyInt(), any())).thenReturn(true);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .unsetOffHostForService(USER_ID, WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
@@ -1032,9 +1037,9 @@ public class CardEmulationManagerTest {
         when(mRegisteredServicesCache.getAidGroupForService(eq(USER_ID),
                 anyInt(), any(), eq(CardEmulation.CATEGORY_PAYMENT))).thenReturn(aidGroup);
 
-        Assert.assertEquals(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertEquals(aidGroup, mCardEmulationManager.getNfcCardEmulationInterface()
                 .getAidGroupForService(USER_ID, WALLET_PAYMENT_SERVICE,
-                        CardEmulation.CATEGORY_PAYMENT), aidGroup);
+                        CardEmulation.CATEGORY_PAYMENT));
 
         ExtendedMockito.verify(() -> {
             NfcPermissions.enforceUserPermissions(mContext);
@@ -1058,7 +1063,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredServicesCache.getAidGroupForService(eq(USER_ID),
                 anyInt(), any(), eq(CardEmulation.CATEGORY_PAYMENT))).thenReturn(aidGroup);
 
-        Assert.assertNull(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertNull(mCardEmulationManager.getNfcCardEmulationInterface()
                 .getAidGroupForService(USER_ID, WALLET_PAYMENT_SERVICE,
                         CardEmulation.CATEGORY_PAYMENT));
 
@@ -1108,7 +1113,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredServicesCache.removeAidGroupForService(eq(USER_ID),
                 anyInt(), any(), eq(CardEmulation.CATEGORY_PAYMENT))).thenReturn(true);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .removeAidGroupForService(USER_ID, WALLET_PAYMENT_SERVICE,
                         CardEmulation.CATEGORY_PAYMENT));
 
@@ -1132,8 +1137,8 @@ public class CardEmulationManagerTest {
         when(mRegisteredServicesCache.getServicesForCategory(eq(USER_ID),
                 eq(CardEmulation.CATEGORY_PAYMENT))).thenReturn(UPDATED_SERVICES);
 
-        Assert.assertEquals(mCardEmulationManager.getNfcCardEmulationInterface()
-                .getServices(USER_ID, CardEmulation.CATEGORY_PAYMENT), UPDATED_SERVICES);
+        assertEquals(UPDATED_SERVICES, mCardEmulationManager.getNfcCardEmulationInterface()
+                .getServices(USER_ID, CardEmulation.CATEGORY_PAYMENT));
 
         ExtendedMockito.verify(() -> {
             NfcPermissions.validateProfileId(mContext, USER_ID);
@@ -1178,7 +1183,7 @@ public class CardEmulationManagerTest {
         when(mPreferredServices.registerPreferredForegroundService(eq(WALLET_PAYMENT_SERVICE),
                 anyInt())).thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .setPreferredService(WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
@@ -1219,8 +1224,7 @@ public class CardEmulationManagerTest {
         when(mPreferredServices.unregisteredPreferredForegroundService(anyInt()))
                 .thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
-                .unsetPreferredService());
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface().unsetPreferredService());
 
         ExtendedMockito.verify(() -> {
             NfcPermissions.enforceUserPermissions(mContext);
@@ -1244,7 +1248,7 @@ public class CardEmulationManagerTest {
             throws RemoteException {
         when(mRegisteredAidCache.supportsAidPrefixRegistration()).thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .supportsAidPrefixRegistration());
 
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(eq(WALLET_HOLDER_PACKAGE_NAME),
@@ -1262,8 +1266,8 @@ public class CardEmulationManagerTest {
         when(mRegisteredServicesCache.getService(eq(USER_ID), eq(WALLET_PAYMENT_SERVICE)))
                 .thenReturn(apduServiceInfo);
 
-        Assert.assertEquals(mCardEmulationManager.getNfcCardEmulationInterface()
-                .getPreferredPaymentService(USER_ID), apduServiceInfo);
+        assertEquals(apduServiceInfo, mCardEmulationManager.getNfcCardEmulationInterface()
+                .getPreferredPaymentService(USER_ID));
 
         ExtendedMockito.verify(() -> {
             NfcPermissions.validateUserId(USER_ID);
@@ -1309,7 +1313,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredServicesCache.registerOtherForService(anyInt(), any(), anyBoolean()))
                 .thenReturn(true);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .setServiceEnabledForCategoryOther(USER_ID, WALLET_PAYMENT_SERVICE, true));
 
         verify(mRegisteredServicesCache).initialize();
@@ -1340,7 +1344,7 @@ public class CardEmulationManagerTest {
                 .thenReturn(null);
         when(Binder.getCallingUserHandle()).thenReturn(USER_HANDLE);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
                 .isDefaultPaymentRegistered());
 
         verify(mWalletRoleObserver, times(2)).isWalletRoleFeatureEnabled();
@@ -1356,8 +1360,9 @@ public class CardEmulationManagerTest {
         String protocol = "DH";
         String technology = "DH";
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
-                .overrideRoutingTable(USER_ID, protocol, technology));
+        assertThrows(IllegalArgumentException.class,
+                () -> mCardEmulationManager.getNfcCardEmulationInterface()
+                .overrideRoutingTable(USER_ID, protocol, technology, WALLET_HOLDER_PACKAGE_NAME));
 
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(eq(WALLET_HOLDER_PACKAGE_NAME),
                 eq(USER_ID));
@@ -1373,8 +1378,8 @@ public class CardEmulationManagerTest {
         when(mForegroundUtils.registerUidToBackgroundCallback(any(), anyInt()))
                 .thenReturn(true);
 
-        assertTrue(mCardEmulationManager.getNfcCardEmulationInterface()
-                .overrideRoutingTable(USER_ID, null, null));
+        mCardEmulationManager.getNfcCardEmulationInterface()
+                .overrideRoutingTable(USER_ID, null, null, WALLET_HOLDER_PACKAGE_NAME);
 
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(eq(WALLET_HOLDER_PACKAGE_NAME),
                 eq(USER_ID));
@@ -1395,8 +1400,8 @@ public class CardEmulationManagerTest {
         String protocol = "DH";
         String technology = "DH";
 
-        assertTrue(mCardEmulationManager.getNfcCardEmulationInterface()
-                .overrideRoutingTable(USER_ID, protocol, technology));
+        mCardEmulationManager.getNfcCardEmulationInterface()
+                .overrideRoutingTable(USER_ID, protocol, technology, WALLET_HOLDER_PACKAGE_NAME);
 
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(eq(WALLET_HOLDER_PACKAGE_NAME),
                 eq(USER_ID));
@@ -1417,8 +1422,8 @@ public class CardEmulationManagerTest {
         String protocol = "eSE1";
         String technology = "eSE1";
 
-        assertTrue(mCardEmulationManager.getNfcCardEmulationInterface()
-                .overrideRoutingTable(USER_ID, protocol, technology));
+        mCardEmulationManager.getNfcCardEmulationInterface()
+                .overrideRoutingTable(USER_ID, protocol, technology, WALLET_HOLDER_PACKAGE_NAME);
 
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(eq(WALLET_HOLDER_PACKAGE_NAME),
                 eq(USER_ID));
@@ -1439,8 +1444,8 @@ public class CardEmulationManagerTest {
         String protocol = "SIM1";
         String technology = "SIM1";
 
-        assertTrue(mCardEmulationManager.getNfcCardEmulationInterface()
-                .overrideRoutingTable(USER_ID, protocol, technology));
+        mCardEmulationManager.getNfcCardEmulationInterface()
+                .overrideRoutingTable(USER_ID, protocol, technology, WALLET_HOLDER_PACKAGE_NAME);
 
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(eq(WALLET_HOLDER_PACKAGE_NAME),
                 eq(USER_ID));
@@ -1459,8 +1464,8 @@ public class CardEmulationManagerTest {
         when(mForegroundUtils.isInForeground(anyInt()))
                 .thenReturn(true);
 
-        assertTrue(mCardEmulationManager.getNfcCardEmulationInterface()
-                .recoverRoutingTable(USER_ID));
+        mCardEmulationManager.getNfcCardEmulationInterface()
+                .recoverRoutingTable(USER_ID);
 
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(eq(WALLET_HOLDER_PACKAGE_NAME),
                 eq(USER_ID));
@@ -1478,7 +1483,8 @@ public class CardEmulationManagerTest {
         when(mForegroundUtils.isInForeground(anyInt()))
                 .thenReturn(false);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcCardEmulationInterface()
+        assertThrows(IllegalArgumentException.class,
+                () -> mCardEmulationManager.getNfcCardEmulationInterface()
                 .recoverRoutingTable(USER_ID));
 
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(eq(WALLET_HOLDER_PACKAGE_NAME),
@@ -1498,8 +1504,8 @@ public class CardEmulationManagerTest {
         when(mRegisteredNfcFServicesCache.getSystemCodeForService(anyInt(),
                 anyInt(), any())).thenReturn(systemCode);
 
-        Assert.assertEquals(mCardEmulationManager.getNfcFCardEmulationInterface()
-                .getSystemCodeForService(USER_ID, WALLET_PAYMENT_SERVICE), systemCode);
+        assertEquals(systemCode, mCardEmulationManager.getNfcFCardEmulationInterface()
+                .getSystemCodeForService(USER_ID, WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
             NfcPermissions.validateUserId(USER_ID);
@@ -1524,7 +1530,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredNfcFServicesCache.getSystemCodeForService(anyInt(),
                 anyInt(), any())).thenReturn(systemCode);
 
-        Assert.assertNull(mCardEmulationManager.getNfcFCardEmulationInterface()
+        assertNull(mCardEmulationManager.getNfcFCardEmulationInterface()
                 .getSystemCodeForService(USER_ID, WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
@@ -1575,7 +1581,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredNfcFServicesCache.registerSystemCodeForService(anyInt(),
                 anyInt(), any(), anyString())).thenReturn(true);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcFCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcFCardEmulationInterface()
                 .registerSystemCodeForService(USER_ID, WALLET_PAYMENT_SERVICE, systemCode));
 
         ExtendedMockito.verify(() -> {
@@ -1624,7 +1630,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredNfcFServicesCache.removeSystemCodeForService(anyInt(),
                 anyInt(), any())).thenReturn(true);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcFCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcFCardEmulationInterface()
                 .removeSystemCodeForService(USER_ID, WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
@@ -1649,8 +1655,8 @@ public class CardEmulationManagerTest {
         when(mRegisteredNfcFServicesCache.getNfcid2ForService(anyInt(),
                 anyInt(), any())).thenReturn(nfcid2);
 
-        Assert.assertEquals(mCardEmulationManager.getNfcFCardEmulationInterface()
-                .getNfcid2ForService(USER_ID, WALLET_PAYMENT_SERVICE), nfcid2);
+        assertEquals(nfcid2, mCardEmulationManager.getNfcFCardEmulationInterface()
+                .getNfcid2ForService(USER_ID, WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
             NfcPermissions.validateUserId(USER_ID);
@@ -1675,7 +1681,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredNfcFServicesCache.getNfcid2ForService(anyInt(),
                 anyInt(), any())).thenReturn(nfcid2);
 
-        Assert.assertNull(mCardEmulationManager.getNfcFCardEmulationInterface()
+        assertNull(mCardEmulationManager.getNfcFCardEmulationInterface()
                 .getNfcid2ForService(USER_ID, WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
@@ -1726,7 +1732,7 @@ public class CardEmulationManagerTest {
         when(mRegisteredNfcFServicesCache.setNfcid2ForService(anyInt(),
                 anyInt(), any(), anyString())).thenReturn(true);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcFCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcFCardEmulationInterface()
                 .setNfcid2ForService(USER_ID, WALLET_PAYMENT_SERVICE, nfcid2));
 
         ExtendedMockito.verify(() -> {
@@ -1773,7 +1779,7 @@ public class CardEmulationManagerTest {
         when(mEnabledNfcFServices.registerEnabledForegroundService(any(),
                 anyInt())).thenReturn(true);
 
-        Assert.assertFalse(mCardEmulationManager.getNfcFCardEmulationInterface()
+        assertFalse(mCardEmulationManager.getNfcFCardEmulationInterface()
                 .enableNfcFForegroundService(WALLET_PAYMENT_SERVICE));
 
         ExtendedMockito.verify(() -> {
@@ -1809,8 +1815,8 @@ public class CardEmulationManagerTest {
         when(mRegisteredNfcFServicesCache.getServices(anyInt()))
                 .thenReturn(UPDATED_NFC_SERVICES);
 
-        Assert.assertEquals(mCardEmulationManager.getNfcFCardEmulationInterface()
-                .getNfcFServices(USER_ID), UPDATED_NFC_SERVICES);
+        assertEquals(UPDATED_NFC_SERVICES, mCardEmulationManager.getNfcFCardEmulationInterface()
+                .getNfcFServices(USER_ID));
 
         ExtendedMockito.verify(() -> {
             NfcPermissions.validateProfileId(mContext, USER_ID);
@@ -1826,10 +1832,11 @@ public class CardEmulationManagerTest {
     @Test
     public void testNfcFCardEmulationGetMaxNumOfRegisterableSystemCodes()
             throws RemoteException {
-        when(mNfcService.getLfT3tMax()).thenReturn(3);
+        int MAX = 3;
+        when(mNfcService.getLfT3tMax()).thenReturn(MAX);
 
-        Assert.assertEquals(mCardEmulationManager.getNfcFCardEmulationInterface()
-                .getMaxNumOfRegisterableSystemCodes(), 3);
+        assertEquals(MAX, mCardEmulationManager.getNfcFCardEmulationInterface()
+                .getMaxNumOfRegisterableSystemCodes());
 
         ExtendedMockito.verify(() -> {
             NfcPermissions.enforceUserPermissions(mContext);
@@ -1898,8 +1905,6 @@ public class CardEmulationManagerTest {
                 eq(WALLET_HOLDER_PACKAGE_NAME), eq(USER_ID));
         verify(mHostEmulationManager).onPreferredForegroundServiceChanged(eq(USER_ID),
                 eq(WALLET_PAYMENT_SERVICE));
-        verify(mRegisteredAidCache).onPreferredForegroundServiceChanged(eq(USER_ID),
-                eq(WALLET_PAYMENT_SERVICE));
         verify(mRegisteredServicesCache).initialize();
         verify(mNfcService).onPreferredPaymentChanged(eq(NfcAdapter.PREFERRED_PAYMENT_CHANGED));
     }
@@ -1918,8 +1923,6 @@ public class CardEmulationManagerTest {
                 eq(WALLET_PAYMENT_SERVICE));
         verify(mRegisteredAidCache).onWalletRoleHolderChanged(
                 eq(WALLET_HOLDER_PACKAGE_NAME), eq(USER_ID));
-        verify(mRegisteredAidCache).onPreferredForegroundServiceChanged(eq(USER_ID),
-                eq(WALLET_PAYMENT_SERVICE));
         verify(mRegisteredServicesCache).initialize();
         verify(mNfcService).onPreferredPaymentChanged(eq(NfcAdapter.PREFERRED_PAYMENT_CHANGED));
         assertUpdateForShouldDefaultToObserveMode(false);
@@ -1987,8 +1990,8 @@ public class CardEmulationManagerTest {
 
         when(mRegisteredAidCache.resolveAid(anyString())).thenReturn(aidResolveInfo);
 
-        Assert.assertEquals(mCardEmulationManager.getRegisteredAidCategory(PAYMENT_AID_1),
-                CardEmulation.CATEGORY_PAYMENT);
+        assertEquals(CardEmulation.CATEGORY_PAYMENT,
+            mCardEmulationManager.getRegisteredAidCategory(PAYMENT_AID_1));
 
         verify(mRegisteredAidCache).resolveAid(eq(PAYMENT_AID_1));
         verify(aidResolveInfo).getCategory();

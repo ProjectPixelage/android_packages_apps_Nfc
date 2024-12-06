@@ -16,6 +16,10 @@
 
 package com.android.nfc.cardemulation;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -137,8 +141,8 @@ public class RegisteredAidCacheTest {
 
         verify(mAidRoutingManager).supportsAidPrefixRouting();
         verify(mAidRoutingManager).supportsAidSubsetRouting();
-        Assert.assertTrue(mRegisteredAidCache.supportsAidPrefixRegistration());
-        Assert.assertTrue(mRegisteredAidCache.supportsAidSubsetRegistration());
+        assertTrue(mRegisteredAidCache.supportsAidPrefixRegistration());
+        assertTrue(mRegisteredAidCache.supportsAidSubsetRegistration());
     }
 
     @Test
@@ -149,20 +153,24 @@ public class RegisteredAidCacheTest {
 
         verify(mAidRoutingManager).supportsAidPrefixRouting();
         verify(mAidRoutingManager).supportsAidSubsetRouting();
-        Assert.assertFalse(mRegisteredAidCache.supportsAidPrefixRegistration());
-        Assert.assertFalse(mRegisteredAidCache.supportsAidSubsetRegistration());
+        assertFalse(mRegisteredAidCache.supportsAidPrefixRegistration());
+        assertFalse(mRegisteredAidCache.supportsAidSubsetRegistration());
     }
 
     @Test
     public void testAidStaticMethods() {
-        Assert.assertTrue(RegisteredAidCache.isPrefix(PREFIX_AID));
-        Assert.assertTrue(RegisteredAidCache.isSubset(SUBSET_AID));
-        Assert.assertTrue(RegisteredAidCache.isExact(EXACT_AID));
+        assertTrue(RegisteredAidCache.isPrefix(PREFIX_AID));
+        assertTrue(RegisteredAidCache.isSubset(SUBSET_AID));
+        assertTrue(RegisteredAidCache.isExact(EXACT_AID));
 
-        Assert.assertFalse(RegisteredAidCache.isPrefix(EXACT_AID));
-        Assert.assertFalse(RegisteredAidCache.isSubset(EXACT_AID));
-        Assert.assertFalse(RegisteredAidCache.isExact(PREFIX_AID));
-        Assert.assertFalse(RegisteredAidCache.isExact(SUBSET_AID));
+        assertFalse(RegisteredAidCache.isPrefix(EXACT_AID));
+        assertFalse(RegisteredAidCache.isSubset(EXACT_AID));
+        assertFalse(RegisteredAidCache.isExact(PREFIX_AID));
+        assertFalse(RegisteredAidCache.isExact(SUBSET_AID));
+
+        assertFalse(RegisteredAidCache.isPrefix(null));
+        assertFalse(RegisteredAidCache.isSubset(null));
+        assertFalse(RegisteredAidCache.isExact(null));
     }
 
     @Test
@@ -210,11 +218,11 @@ public class RegisteredAidCacheTest {
 
         verify(mAidRoutingManager).supportsAidPrefixRouting();
         verify(mAidRoutingManager).supportsAidSubsetRouting();
-        Assert.assertEquals(resolveInfo.defaultService.getComponent(), FOREGROUND_SERVICE);
-        Assert.assertEquals(mRegisteredAidCache.getPreferredService(),
-                new Pair<>(USER_ID, FOREGROUND_SERVICE));
-        Assert.assertEquals(resolveInfo.services.size(), 1);
-        Assert.assertEquals(resolveInfo.category, CardEmulation.CATEGORY_PAYMENT);
+        assertEquals(FOREGROUND_SERVICE, resolveInfo.defaultService.getComponent());
+        assertEquals(new Pair<>(USER_ID, FOREGROUND_SERVICE),
+                mRegisteredAidCache.getPreferredService());
+        assertEquals(1, resolveInfo.services.size());
+        assertEquals(CardEmulation.CATEGORY_PAYMENT, resolveInfo.category);
         verifyNoMoreInteractions(mAidRoutingManager);
     }
 
@@ -263,25 +271,23 @@ public class RegisteredAidCacheTest {
         RegisteredAidCache.AidResolveInfo nonPaymentResolveInfo
                 = mRegisteredAidCache.resolveAid(NON_PAYMENT_AID_1);
 
-        Assert.assertEquals(paymentResolveInfo.defaultService.getComponent(),
-                WALLET_PAYMENT_SERVICE);
-        Assert.assertEquals(paymentResolveInfo.services.size(), 1);
-        Assert.assertEquals(paymentResolveInfo.category, CardEmulation.CATEGORY_PAYMENT);
-        Assert.assertEquals(nonPaymentResolveInfo.defaultService.getComponent(),
-                NON_PAYMENT_SERVICE);
-        Assert.assertEquals(nonPaymentResolveInfo.services.size(), 1);
-        Assert.assertEquals(nonPaymentResolveInfo.category, CardEmulation.CATEGORY_OTHER);
+        assertEquals(WALLET_PAYMENT_SERVICE, paymentResolveInfo.defaultService.getComponent());
+        assertEquals(1, paymentResolveInfo.services.size());
+        assertEquals(CardEmulation.CATEGORY_PAYMENT, paymentResolveInfo.category);
+        assertEquals(NON_PAYMENT_SERVICE, nonPaymentResolveInfo.defaultService.getComponent());
+        assertEquals(1, nonPaymentResolveInfo.services.size());
+        assertEquals(CardEmulation.CATEGORY_OTHER, nonPaymentResolveInfo.category);
         verify(mAidRoutingManager).configureRouting(mRoutingEntryMapCaptor.capture(),
                 eq(false));
         HashMap<String, AidRoutingManager.AidEntry> routingEntries =
                 mRoutingEntryMapCaptor.getValue();
-        Assert.assertTrue(routingEntries.containsKey(PAYMENT_AID_1));
-        Assert.assertTrue(routingEntries.containsKey(NON_PAYMENT_AID_1));
-        Assert.assertTrue(routingEntries.get(PAYMENT_AID_1).isOnHost);
-        Assert.assertTrue(routingEntries.get(NON_PAYMENT_AID_1).isOnHost);
-        Assert.assertNull(routingEntries.get(PAYMENT_AID_1).offHostSE);
-        Assert.assertNull(routingEntries.get(NON_PAYMENT_AID_1).offHostSE);
-        Assert.assertTrue(mRegisteredAidCache.isRequiresScreenOnServiceExist());
+        assertTrue(routingEntries.containsKey(PAYMENT_AID_1));
+        assertTrue(routingEntries.containsKey(NON_PAYMENT_AID_1));
+        assertTrue(routingEntries.get(PAYMENT_AID_1).isOnHost);
+        assertTrue(routingEntries.get(NON_PAYMENT_AID_1).isOnHost);
+        assertNull(routingEntries.get(PAYMENT_AID_1).offHostSE);
+        assertNull(routingEntries.get(NON_PAYMENT_AID_1).offHostSE);
+        assertTrue(mRegisteredAidCache.isRequiresScreenOnServiceExist());
     }
 
     @Test
@@ -329,14 +335,12 @@ public class RegisteredAidCacheTest {
         RegisteredAidCache.AidResolveInfo nonPaymentResolveInfo
                 = mRegisteredAidCache.resolveAid(NON_PAYMENT_AID_1);
 
-        Assert.assertEquals(paymentResolveInfo.defaultService.getComponent(),
-                WALLET_PAYMENT_SERVICE);
-        Assert.assertEquals(paymentResolveInfo.services.size(), 1);
-        Assert.assertEquals(paymentResolveInfo.category, CardEmulation.CATEGORY_PAYMENT);
-        Assert.assertEquals(nonPaymentResolveInfo.defaultService.getComponent(),
-                NON_PAYMENT_SERVICE);
-        Assert.assertEquals(nonPaymentResolveInfo.services.size(), 1);
-        Assert.assertEquals(nonPaymentResolveInfo.category, CardEmulation.CATEGORY_OTHER);
+        assertEquals(WALLET_PAYMENT_SERVICE, paymentResolveInfo.defaultService.getComponent());
+        assertEquals(1, paymentResolveInfo.services.size());
+        assertEquals(CardEmulation.CATEGORY_PAYMENT, paymentResolveInfo.category);
+        assertEquals(NON_PAYMENT_SERVICE, nonPaymentResolveInfo.defaultService.getComponent());
+        assertEquals(1, nonPaymentResolveInfo.services.size());
+        assertEquals(CardEmulation.CATEGORY_OTHER, nonPaymentResolveInfo.category);
     }
 
     @Test
@@ -380,9 +384,72 @@ public class RegisteredAidCacheTest {
         mRegisteredAidCache.onWalletRoleHolderChanged(WALLET_HOLDER_PACKAGE_NAME, USER_ID);
         RegisteredAidCache.AidResolveInfo resolveInfo
                 = mRegisteredAidCache.resolveAid(PAYMENT_AID_1);
-        Assert.assertEquals(resolveInfo.defaultService.getComponent(), WALLET_PAYMENT_SERVICE);
-        Assert.assertEquals(resolveInfo.services.size(), 2);
-        Assert.assertEquals(resolveInfo.category, CardEmulation.CATEGORY_PAYMENT);
+        assertEquals(WALLET_PAYMENT_SERVICE, resolveInfo.defaultService.getComponent());
+        assertEquals(2, resolveInfo.services.size());
+        assertEquals(CardEmulation.CATEGORY_PAYMENT, resolveInfo.category);
+    }
+
+    @Test
+    public void testAidConflictResolution_walletOtherServiceDisabled_nonDefaultServiceWins() {
+        setWalletRoleFlag(true);
+        supportPrefixAndSubset(false);
+        mRegisteredAidCache = new RegisteredAidCache(mContext, mWalletRoleObserver,
+                mAidRoutingManager);
+
+        List<ApduServiceInfo> apduServiceInfos = new ArrayList<>();
+        apduServiceInfos.add(createServiceInfoForAidRouting(
+                WALLET_PAYMENT_SERVICE,
+                true,
+                List.of(PAYMENT_AID_1, NON_PAYMENT_AID_1),
+                List.of(CardEmulation.CATEGORY_PAYMENT, CardEmulation.CATEGORY_OTHER),
+                false,
+                false,
+                USER_ID,
+                false));
+        apduServiceInfos.add(createServiceInfoForAidRouting(
+                PAYMENT_SERVICE,
+                true,
+                List.of(PAYMENT_AID_1, NON_PAYMENT_AID_1),
+                List.of(CardEmulation.CATEGORY_PAYMENT, CardEmulation.CATEGORY_OTHER),
+                false,
+                false,
+                USER_ID,
+                true));
+
+        mRegisteredAidCache.generateUserApduServiceInfoLocked(USER_ID, apduServiceInfos);
+        mRegisteredAidCache.generateServiceMapLocked(apduServiceInfos);
+        mRegisteredAidCache.onWalletRoleHolderChanged(WALLET_HOLDER_PACKAGE_NAME, USER_ID);
+        RegisteredAidCache.AidResolveInfo resolveInfo
+                = mRegisteredAidCache.resolveAid(NON_PAYMENT_AID_1);
+        assertEquals(PAYMENT_SERVICE, resolveInfo.defaultService.getComponent());
+        assertEquals(1, resolveInfo.services.size());
+    }
+
+    @Test
+    public void testAidConflictResolution_walletOtherServiceDisabled_emptyServices() {
+        setWalletRoleFlag(true);
+        supportPrefixAndSubset(false);
+        mRegisteredAidCache = new RegisteredAidCache(mContext, mWalletRoleObserver,
+                mAidRoutingManager);
+
+        List<ApduServiceInfo> apduServiceInfos = new ArrayList<>();
+        apduServiceInfos.add(createServiceInfoForAidRouting(
+                WALLET_PAYMENT_SERVICE,
+                true,
+                List.of(PAYMENT_AID_1, NON_PAYMENT_AID_1),
+                List.of(CardEmulation.CATEGORY_PAYMENT, CardEmulation.CATEGORY_OTHER),
+                false,
+                false,
+                USER_ID,
+                false));
+
+        mRegisteredAidCache.generateUserApduServiceInfoLocked(USER_ID, apduServiceInfos);
+        mRegisteredAidCache.generateServiceMapLocked(apduServiceInfos);
+        mRegisteredAidCache.onWalletRoleHolderChanged(WALLET_HOLDER_PACKAGE_NAME, USER_ID);
+        RegisteredAidCache.AidResolveInfo resolveInfo
+                = mRegisteredAidCache.resolveAid(NON_PAYMENT_AID_1);
+        assertNull(resolveInfo.defaultService);
+        assertTrue(resolveInfo.services.isEmpty());
     }
 
     @Test
@@ -426,22 +493,22 @@ public class RegisteredAidCacheTest {
 
         verify(mAidRoutingManager).supportsAidPrefixRouting();
         verify(mAidRoutingManager).supportsAidSubsetRouting();
-        Assert.assertTrue(mRegisteredAidCache.mAidServices.containsKey(PAYMENT_AID_1));
-        Assert.assertTrue(mRegisteredAidCache.mAidServices.containsKey(NON_PAYMENT_AID_1));
-        Assert.assertEquals(mRegisteredAidCache.mAidServices.get(PAYMENT_AID_1).size(), 2);
-        Assert.assertEquals(mRegisteredAidCache.mAidServices.get(NON_PAYMENT_AID_1).size(), 1);
-        Assert.assertEquals(mRegisteredAidCache.mAidServices.get(PAYMENT_AID_1).get(0)
-                .service.getComponent(), WALLET_PAYMENT_SERVICE);
-        Assert.assertEquals(mRegisteredAidCache.mAidServices.get(PAYMENT_AID_1).get(1)
-                        .service.getComponent(), PAYMENT_SERVICE);
+        assertTrue(mRegisteredAidCache.mAidServices.containsKey(PAYMENT_AID_1));
+        assertTrue(mRegisteredAidCache.mAidServices.containsKey(NON_PAYMENT_AID_1));
+        assertEquals(2, mRegisteredAidCache.mAidServices.get(PAYMENT_AID_1).size());
+        assertEquals(1, mRegisteredAidCache.mAidServices.get(NON_PAYMENT_AID_1).size());
+        assertEquals(WALLET_PAYMENT_SERVICE,
+            mRegisteredAidCache.mAidServices.get(PAYMENT_AID_1).get(0).service.getComponent());
+        assertEquals(PAYMENT_SERVICE,
+            mRegisteredAidCache.mAidServices.get(PAYMENT_AID_1).get(1).service.getComponent());
         verify(mAidRoutingManager).configureRouting(mRoutingEntryMapCaptor.capture(),
                 eq(false));
         HashMap<String, AidRoutingManager.AidEntry> routingEntries =
                 mRoutingEntryMapCaptor.getValue();
-        Assert.assertTrue(routingEntries.containsKey(NON_PAYMENT_AID_1));
-        Assert.assertTrue(routingEntries.get(NON_PAYMENT_AID_1).isOnHost);
-        Assert.assertNull(routingEntries.get(NON_PAYMENT_AID_1).offHostSE);
-        Assert.assertTrue(mRegisteredAidCache.isRequiresScreenOnServiceExist());
+        assertTrue(routingEntries.containsKey(NON_PAYMENT_AID_1));
+        assertTrue(routingEntries.get(NON_PAYMENT_AID_1).isOnHost);
+        assertNull(routingEntries.get(NON_PAYMENT_AID_1).offHostSE);
+        assertTrue(mRegisteredAidCache.isRequiresScreenOnServiceExist());
     }
 
     @Test
@@ -488,7 +555,7 @@ public class RegisteredAidCacheTest {
         verify(mAidRoutingManager).supportsAidSubsetRouting();
         verify(mAidRoutingManager).configureRouting(mRoutingEntryMapCaptor.capture(),
                 eq(false));
-        Assert.assertFalse(mRegisteredAidCache.isRequiresScreenOnServiceExist());
+        assertFalse(mRegisteredAidCache.isRequiresScreenOnServiceExist());
     }
 
     @Test
@@ -547,7 +614,7 @@ public class RegisteredAidCacheTest {
         ApduServiceInfo resolvedApdu =
                 mRegisteredAidCache.resolvePollingLoopFilterConflict(apduServiceInfos);
 
-        Assert.assertEquals(resolvedApdu, apduServiceInfos.get(1));
+        assertEquals(resolvedApdu, apduServiceInfos.get(1));
     }
 
     @Test
@@ -592,7 +659,7 @@ public class RegisteredAidCacheTest {
         ApduServiceInfo resolvedApdu =
                 mRegisteredAidCache.resolvePollingLoopFilterConflict(apduServiceInfos);
 
-        Assert.assertEquals(resolvedApdu, apduServiceInfos.get(0));
+        assertEquals(resolvedApdu, apduServiceInfos.get(0));
     }
 
     private void setWalletRoleFlag(boolean flag) {
@@ -623,6 +690,19 @@ public class RegisteredAidCacheTest {
             when(apduServiceInfo.getCategoryForAid(eq(aid))).thenReturn(category);
         }
         return apduServiceInfo;
+    }
+
+    @Test
+    public void testGetPreferredService() {
+
+        mRegisteredAidCache = new RegisteredAidCache(mContext, mWalletRoleObserver,
+                mAidRoutingManager);
+        Pair<Integer, ComponentName> servicePair = mRegisteredAidCache.getPreferredService();
+        Assert.assertNull(servicePair.second);
+        mRegisteredAidCache.onPreferredForegroundServiceChanged(USER_ID, FOREGROUND_SERVICE);
+        servicePair = mRegisteredAidCache.getPreferredService();
+        Assert.assertNotNull(servicePair.second);
+        assertEquals(new Pair<>(USER_ID, FOREGROUND_SERVICE), servicePair);
     }
 
 }

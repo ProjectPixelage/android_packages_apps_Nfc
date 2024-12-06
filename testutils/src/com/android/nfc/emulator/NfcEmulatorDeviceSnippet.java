@@ -17,6 +17,7 @@ package com.android.nfc.emulator;
 
 
 import android.app.Instrumentation;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.nfc.NfcAdapter;
 import android.util.Log;
@@ -27,10 +28,17 @@ import androidx.test.uiautomator.UiObjectNotFoundException;
 import androidx.test.uiautomator.UiScrollable;
 import androidx.test.uiautomator.UiSelector;
 
+import com.android.nfc.service.AccessServiceTurnObserveModeOnProcessApdu;
+import com.android.nfc.utils.CommandApdu;
+import com.android.nfc.utils.HceUtils;
 import com.android.nfc.utils.NfcSnippet;
 
 import com.google.android.mobly.snippet.rpc.AsyncRpc;
 import com.google.android.mobly.snippet.rpc.Rpc;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class NfcEmulatorDeviceSnippet extends NfcSnippet {
 
@@ -39,58 +47,62 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
 
     private static final long TIMEOUT_MS = 10_000L;
 
-    /** Opens single Non Payment emulator */
-    @Rpc(description = "Open single non payment emulator activity")
-    public void startSingleNonPaymentEmulatorActivity() {
+    /**
+     * Starts emulator activity for simple multidevice tests
+     *
+     * @param serviceClassNames - service class names to enable
+     * @param testPassClassName - class name of service that should handle the APDUs
+     * @param isPaymentActivity - whether or not it is a payment activity
+     */
+    @Rpc(description = "Start simple emulator activity")
+    public void startSimpleEmulatorActivity(
+            String[] serviceClassNames, String testPassClassName, boolean isPaymentActivity) {
+        Intent intent =
+                buildSimpleEmulatorActivityIntent(
+                        serviceClassNames, testPassClassName, null, isPaymentActivity);
+        mActivity =
+                (SimpleEmulatorActivity)
+                        InstrumentationRegistry.getInstrumentation().startActivitySync(intent);
+    }
+
+    /**
+     * Starts emulator activity for simple multidevice tests
+     *
+     * @param serviceClassNames - services to enable
+     * @param testPassClassName - service that should handle the APDU
+     * @param preferredServiceClassName - preferred service to set
+     * @param isPaymentActivity - whether or not this is a payment activity
+     */
+    @Rpc(description = "Start simple emulator activity with preferred service")
+    public void startSimpleEmulatorActivityWithPreferredService(
+            String[] serviceClassNames,
+            String testPassClassName,
+            String preferredServiceClassName,
+            boolean isPaymentActivity) {
+        Intent intent =
+                buildSimpleEmulatorActivityIntent(
+                        serviceClassNames,
+                        testPassClassName,
+                        preferredServiceClassName,
+                        isPaymentActivity);
+        mActivity =
+                (SimpleEmulatorActivity)
+                        InstrumentationRegistry.getInstrumentation().startActivitySync(intent);
+    }
+
+    @Rpc(description = "Opens emulator activity with Access Service that turns on observe mode")
+    public void startAccessServiceObserveModeEmulatorActivity() {
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
 
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.setClassName(
                 instrumentation.getTargetContext(),
-                SingleNonPaymentEmulatorActivity.class.getName());
+                AccessServiceTurnObserveModeOnProcessApduEmulatorActivity.class.getName());
 
-        mActivity = (SingleNonPaymentEmulatorActivity) instrumentation.startActivitySync(intent);
-    }
-
-    /** Opens single payment emulator activity */
-    @Rpc(description = "Open single payment emulator activity")
-    public void startSinglePaymentEmulatorActivity() {
-        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
-
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setClassName(
-                instrumentation.getTargetContext(), SinglePaymentEmulatorActivity.class.getName());
-
-        mActivity = (SinglePaymentEmulatorActivity) instrumentation.startActivitySync(intent);
-    }
-
-    /** Opens dual payment emulator activity */
-    @Rpc(description = "Opens dual payment emulator activity")
-    public void startDualPaymentEmulatorActivity() {
-        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
-
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setClassName(
-                instrumentation.getTargetContext(), DualPaymentEmulatorActivity.class.getName());
-
-        mActivity = (DualPaymentEmulatorActivity) instrumentation.startActivitySync(intent);
-    }
-
-    /** Opens foreground payment emulator activity */
-    @Rpc(description = "Opens foreground payment emulator activity")
-    public void startForegroundPaymentEmulatorActivity() {
-        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
-
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setClassName(
-                instrumentation.getTargetContext(),
-                ForegroundPaymentEmulatorActivity.class.getName());
-
-        mActivity = (ForegroundPaymentEmulatorActivity) instrumentation.startActivitySync(intent);
+        mActivity =
+                (AccessServiceTurnObserveModeOnProcessApduEmulatorActivity)
+                        instrumentation.startActivitySync(intent);
     }
 
     /** Opens dynamic AID emulator activity */
@@ -188,34 +200,6 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
         mActivity = (OnAndOffHostEmulatorActivity) instrumentation.startActivitySync(intent);
     }
 
-    /** Opens dual non-payment emulator activity */
-    @Rpc(description = "Opens dual non-payment emulator activity")
-    public void startDualNonPaymentEmulatorActivity() {
-        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
-
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setClassName(
-                instrumentation.getTargetContext(), DualNonPaymentEmulatorActivity.class.getName());
-
-        mActivity = (DualNonPaymentEmulatorActivity) instrumentation.startActivitySync(intent);
-    }
-
-    /** Opens foreground non-payment emulator activity */
-    @Rpc(description = "Opens foreground non-payment emulator activity")
-    public void startForegroundNonPaymentEmulatorActivity() {
-        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
-
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setClassName(
-                instrumentation.getTargetContext(),
-                ForegroundNonPaymentEmulatorActivity.class.getName());
-
-        mActivity =
-                (ForegroundNonPaymentEmulatorActivity) instrumentation.startActivitySync(intent);
-    }
-
     /** Opens throughput emulator activity */
     @Rpc(description = "Opens throughput emulator activity")
     public void startThroughputEmulatorActivity() {
@@ -227,19 +211,6 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
                 instrumentation.getTargetContext(), ThroughputEmulatorActivity.class.getName());
 
         mActivity = (ThroughputEmulatorActivity) instrumentation.startActivitySync(intent);
-    }
-
-    /** Opens tap test emulator activity */
-    @Rpc(description = "Opens tap test emulator activity")
-    public void startTapTestEmulatorActivity() {
-        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
-
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setClassName(
-                instrumentation.getTargetContext(), TapTestEmulatorActivity.class.getName());
-
-        mActivity = (TapTestEmulatorActivity) instrumentation.startActivitySync(intent);
     }
 
     /** Opens large num AIDs emulator activity */
@@ -267,20 +238,6 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
                 ScreenOffPaymentEmulatorActivity.class.getName());
 
         mActivity = (ScreenOffPaymentEmulatorActivity) instrumentation.startActivitySync(intent);
-    }
-
-    /** Opens conflicting non-payment emulator activity */
-    @Rpc(description = "Opens conflicting non-payment emulator activity")
-    public void startConflictingNonPaymentEmulatorActivity() {
-        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
-
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setClassName(
-                instrumentation.getTargetContext(),
-                ConflictingNonPaymentEmulatorActivity.class.getName());
-        mActivity =
-                (ConflictingNonPaymentEmulatorActivity) instrumentation.startActivitySync(intent);
     }
 
     /** Opens conflicting non-payment prefix emulator activity */
@@ -332,6 +289,19 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
             return mActivity.setObserveModeEnabled(enable);
         }
         return false;
+    }
+
+    /** Open polling and off host emulator activity */
+    @Rpc(description = "Open polling and off host emulator activity")
+    public void startPollingAndOffHostEmulatorActivity() {
+        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.setClassName(
+                instrumentation.getTargetContext(),
+                PollingAndOffHostEmulatorActivity.class.getName());
+        intent.putExtra(PollingLoopEmulatorActivity.NFC_TECH_KEY, NfcAdapter.FLAG_READER_NFC_A);
+        mActivity = (PollingAndOffHostEmulatorActivity) instrumentation.startActivitySync(intent);
     }
 
     /** Open polling loop emulator activity for Type A */
@@ -388,10 +358,38 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
         mActivity = (TwoPollingFrameEmulatorActivity) instrumentation.startActivitySync(intent);
     }
 
+    @Rpc(description = "Opens PN532 Activity\"")
+    public void startPN532Activity() {
+        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.setClassName(
+                instrumentation.getTargetContext(),
+                PN532Activity.class.getName());
+
+        mActivity = (PN532Activity) instrumentation.startActivitySync(intent);
+    }
+
     /** Registers receiver that waits for RF field broadcast */
     @AsyncRpc(description = "Waits for RF field detected broadcast")
     public void asyncWaitForRfOnBroadcast(String callbackId, String eventName) {
         registerSnippetBroadcastReceiver(callbackId, eventName, sRfOnAction);
+    }
+
+    /** Registers receiver that waits for RF field broadcast */
+    @AsyncRpc(description = "Waits for RF field detected broadcast")
+    public void asyncWaitsForTagDiscovered(String callbackId, String eventName) {
+        registerSnippetBroadcastReceiver(
+                callbackId, eventName, PN532Activity.ACTION_TAG_DISCOVERED);
+    }
+
+    @Rpc(description = "Enable reader mode with given flags")
+    public void enableReaderMode(int flags) {
+        if (mActivity == null || !(mActivity instanceof PN532Activity)) {
+            return;
+        }
+        ((PN532Activity) mActivity).enableReaderMode(flags);
     }
 
     /** Registers receiver for polling loop action */
@@ -427,6 +425,14 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
     @AsyncRpc(description = "Waits for Screen On event")
     public void asyncWaitForScreenOn(String callbackId, String eventName) {
         registerSnippetBroadcastReceiver(callbackId, eventName, Intent.ACTION_SCREEN_ON);
+    }
+
+    @AsyncRpc(description = "Waits for Observe Mode False")
+    public void asyncWaitForObserveModeFalse(String callbackId, String eventName) {
+        registerSnippetBroadcastReceiver(
+                callbackId,
+                eventName,
+                AccessServiceTurnObserveModeOnProcessApdu.OBSERVE_MODE_FALSE);
     }
 
     /** Sets the listen tech for the active emulator activity */
@@ -485,10 +491,32 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
 
     /** Wait for preferred service to be set */
     @Rpc(description = "Waits for preferred service to be set")
-    public void waitForService() {
+    public void waitForPreferredService() {
         if (mActivity != null) {
-            mActivity.waitForService();
+            mActivity.waitForPreferredService();
         }
+    }
+
+    /** Wait for preferred service to be set */
+    @Rpc(description = "Waits for preferred service to be set")
+    public void waitForService(String serviceName) {
+        if (mActivity != null) {
+            mActivity.waitForService(
+                    new ComponentName(HceUtils.EMULATOR_PACKAGE_NAME, serviceName));
+        }
+    }
+
+    @Rpc(description = "Gets command apdus")
+    public String[] getCommandApdus(String serviceClassName) {
+        CommandApdu[] commandApdus = HceUtils.COMMAND_APDUS_BY_SERVICE.get(serviceClassName);
+        return Arrays.stream(commandApdus)
+                .map(commandApdu -> new String(commandApdu.getApdu()))
+                .toArray(String[]::new);
+    }
+
+    @Rpc(description = "Gets response apdus")
+    public String[] getResponseApdus(String serviceClassName) {
+        return HceUtils.RESPONSE_APDUS_BY_SERVICE.get(serviceClassName);
     }
 
     /** Builds intent to launch polling loop emulators */
@@ -498,6 +526,44 @@ public class NfcEmulatorDeviceSnippet extends NfcSnippet {
         intent.setClassName(
                 instrumentation.getTargetContext(), PollingLoopEmulatorActivity.class.getName());
         intent.putExtra(PollingLoopEmulatorActivity.NFC_TECH_KEY, nfcTech);
+        return intent;
+    }
+
+    /** Builds intent to launch simple emulator activity */
+    private Intent buildSimpleEmulatorActivityIntent(
+            String[] serviceClassNames,
+            String expectedServiceClassName,
+            String preferredServiceClassName,
+            boolean isPaymentActivity) {
+
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.setClassName(
+                InstrumentationRegistry.getInstrumentation().getTargetContext(),
+                SimpleEmulatorActivity.class.getName());
+
+        if (serviceClassNames != null && serviceClassNames.length > 0) {
+            List<ComponentName> services =
+                    Arrays.stream(serviceClassNames)
+                            .map(cls -> new ComponentName(HceUtils.EMULATOR_PACKAGE_NAME, cls))
+                            .toList();
+            intent.putExtra(SimpleEmulatorActivity.EXTRA_SERVICES, new ArrayList<>(services));
+        }
+
+        if (expectedServiceClassName != null) {
+            intent.putExtra(
+                    SimpleEmulatorActivity.EXTRA_EXPECTED_SERVICE,
+                    new ComponentName(HceUtils.EMULATOR_PACKAGE_NAME, expectedServiceClassName));
+        }
+
+        if (preferredServiceClassName != null) {
+            intent.putExtra(
+                    SimpleEmulatorActivity.EXTRA_PREFERRED_SERVICE,
+                    new ComponentName(HceUtils.EMULATOR_PACKAGE_NAME, preferredServiceClassName));
+        }
+
+        intent.putExtra(SimpleEmulatorActivity.EXTRA_IS_PAYMENT_ACTIVITY, isPaymentActivity);
+
         return intent;
     }
 }
